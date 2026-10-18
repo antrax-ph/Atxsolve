@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AXSolver - Cloudflare Turnstile Solver</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+        
+        body { 
+            background-color: #020617; 
+            color: #f8fafc; 
+            font-family: 'Inter', sans-serif;
+            background-image: radial-gradient(circle at top right, #1e293b, #020617), radial-gradient(circle at bottom left, #0f172a, #020617);
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+        
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .gold-accent { color: #eab308; }
+        .bg-gold-accent { background-color: #eab308; }
+        .bg-gold-accent:hover { 
+            background-color: #facc15; 
+            box-shadow: 0 0 20px rgba(234, 179, 8, 0.4);
+        }
+        
+        .glass-panel {
+            background-color: rgba(30, 41, 59, 0.4);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+        
+        .glass-panel-hover:hover {
+            background-color: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(234, 179, 8, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            transform: translateY(-2px);
+        }
+
+        /* Custom Scrollbars */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(234, 179, 8, 0.3); border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(234, 179, 8, 0.6); }
+
+        .animate-cascade {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: cascadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        @keyframes cascadeUp { to { opacity: 1; transform: translateY(0); } }
+
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+
+        .spinner {
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top: 2px solid currentColor;
+            width: 16px; height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .tab-btn { transition: all 0.2s; }
+        .tab-btn.active { background-color: #1e293b; color: #fff; border-color: rgba(255,255,255,0.1); }
+        
+        .custom-input {
+            width: 100%;
+            background-color: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 0.5rem;
+            padding: 0.6rem 1rem;
+            color: #fff;
+            transition: all 0.3s;
+        }
+        .custom-input:focus {
+            outline: none;
+            border-color: #eab308;
+            box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2);
+        }
+        
+        .pulse-live {
+            box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+            animation: pulse-green 2s infinite;
+        }
+        @keyframes pulse-green {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen w-full items-center p-4 md:p-6 lg:p-8">
+
+    <div class="w-full max-w-7xl flex flex-col gap-6">
+        <!-- Header -->
+        <header class="flex flex-col md:flex-row justify-between items-start md:items-center glass-panel px-6 py-4 rounded-2xl animate-cascade gap-4 md:gap-0">
+            <div class="flex items-center gap-3">
+                <svg class="w-8 h-8 gold-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0015.171 17m3.839 1.132c.645-2.266.99-4.659.99-7.132A8 8 0 008 4.07M3 15.364c.64-1.319 1-2.8 1-4.364 0-1.457.39-2.823 1.07-4"></path></svg>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wider text-white">AX<span class="gold-accent">Solver</span></h1>
+                    <p class="text-[10px] font-semibold tracking-[0.1em] text-gray-400 uppercase">AX Cloudflare Turnstile Solver</p>
+                </div>
+                <div class="ml-2 md:ml-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-2">
+                    <div class="w-2 h-2 bg-emerald-500 rounded-full pulse-live"></div>
+                    Live
+                </div>
+            </div>
+            <div class="flex gap-3 font-mono text-xs w-full md:w-auto">
+                <div class="glass-panel px-4 py-2 rounded-lg text-gray-400 flex-1 md:flex-none text-center" id="uptimeDisplay">Uptime --h --m</div>
+                <div class="glass-panel px-4 py-2 rounded-lg text-gold-accent flex-1 md:flex-none text-center">http://{{ host }}</div>
+            </div>
+        </header>
+
+        <!-- Performance Overview -->
+        <div class="flex justify-between items-end mb-[-8px] animate-cascade delay-1">
+            <h2 class="text-xs font-bold tracking-widest text-gray-400 uppercase border-l-2 border-gold-accent pl-2">Performance Overview</h2>
+            <button id="autoRefreshBtn" class="text-[10px] font-bold tracking-wider px-3 py-1 rounded glass-panel text-emerald-400 hover:text-emerald-300 transition-colors uppercase">Auto-Refresh: ON</button>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 animate-cascade delay-1">
+            <div class="glass-panel glass-panel-hover p-4 md:p-5 rounded-2xl flex flex-col justify-between transition-all">
+                <div class="flex items-center gap-2 text-indigo-400 mb-2">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                    <span class="text-[10px] font-bold tracking-wider uppercase">Solved</span>
+                </div>
+                <div class="text-2xl md:text-3xl font-bold text-white" id="metricSolved">0</div>
+            </div>
+            <div class="glass-panel glass-panel-hover p-4 md:p-5 rounded-2xl flex flex-col justify-between transition-all">
+                <div class="flex items-center gap-2 text-rose-400 mb-2">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="text-[10px] font-bold tracking-wider uppercase">Errors</span>
+                </div>
+                <div class="text-2xl md:text-3xl font-bold text-white" id="metricErrors">0</div>
+            </div>
+            <div class="glass-panel glass-panel-hover p-4 md:p-5 rounded-2xl flex flex-col justify-between transition-all">
+                <div class="flex items-center gap-2 text-sky-400 mb-2">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <span class="text-[10px] font-bold tracking-wider uppercase">In-Flight</span>
+                </div>
+                <div class="text-2xl md:text-3xl font-bold text-white" id="metricInFlight">0</div>
+            </div>
+            <div class="glass-panel glass-panel-hover p-4 md:p-5 rounded-2xl flex flex-col justify-between transition-all">
+                <div class="flex items-center gap-2 text-emerald-400 mb-2">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="text-[10px] font-bold tracking-wider uppercase">Success</span>
+                </div>
+                <div class="text-2xl md:text-3xl font-bold text-emerald-400" id="metricSuccess">100.0%</div>
+            </div>
+            <div class="glass-panel glass-panel-hover p-4 md:p-5 rounded-2xl flex flex-col justify-between transition-all">
+                <div class="flex items-center gap-2 text-amber-400 mb-2">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    <span class="text-[10px] font-bold tracking-wider uppercase">Avg Latency</span>
+                </div>
+                <div class="text-2xl md:text-3xl font-bold text-white" id="metricAvgLatency">0.00s</div>
+            </div>
+            <div class="glass-panel glass-panel-hover p-4 md:p-5 rounded-2xl flex flex-col justify-between transition-all">
+                <div class="flex items-center gap-2 text-indigo-400 mb-2">
+                    <svg class="w-4 h-4 md:w-5 md:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    <span class="text-[10px] font-bold tracking-wider uppercase">P95 Latency</span>
+                </div>
+                <div class="text-2xl md:text-3xl font-bold text-white" id="metricP95Latency">0.00s</div>
+            </div>
+        </div>
+
+        <!-- Workbench Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-cascade delay-2">
+            
+            <!-- Left: Request Area -->
+            <div class="lg:col-span-5 glass-panel rounded-2xl p-6 flex flex-col relative overflow-hidden">
+                <div class="absolute -top-10 -right-10 w-40 h-40 bg-gold-accent opacity-5 blur-[80px] rounded-full pointer-events-none"></div>
+                
+                <h3 class="text-lg font-bold text-white flex items-center gap-2 mb-5">
+                    <svg class="w-5 h-5 text-gold-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path></svg>
+                    Request
+                </h3>
+
+                <div class="flex flex-col gap-4">
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Target URL</label>
+                        <input type="text" id="inputUrl" value="" class="custom-input font-mono text-sm" placeholder="https://...">
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Site Key</label>
+                        <input type="text" id="inputSiteKey" value="" class="custom-input font-mono text-sm" placeholder="0x4AAAAAAA...">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Timeout (s)</label>
+                            <input type="number" id="inputTimeout" value="60" class="custom-input font-mono text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Auth Token</label>
+                            <input type="text" class="custom-input font-mono text-sm" placeholder="Optional">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">Proxy (Optional)</label>
+                        <input type="text" id="inputProxy" class="custom-input font-mono text-sm" placeholder="user:pass@ip:port">
+                    </div>
+
+                    <label class="flex items-center gap-3 cursor-pointer group w-max mt-1">
+                        <input type="checkbox" id="checkResidential" class="w-4 h-4 rounded border-gray-600 bg-gray-900 text-gold-accent focus:ring-gold-accent focus:ring-offset-gray-900">
+                        <span class="text-sm font-medium text-gray-400 group-hover:text-gray-200 transition-colors">Enable Residential Proxy Mode</span>
+                    </label>
+                </div>
+
+                <div class="mt-auto pt-5 border-t border-gray-700/50 flex justify-between items-center">
+                    <div class="flex items-center gap-3">
+                        <button id="btnSend" onclick="sendSolveRequest()" class="bg-gold-accent hover:bg-yellow-400 text-gray-900 font-bold py-2.5 px-6 rounded-xl transition-all shadow-[0_0_15px_rgba(234,179,8,0.3)] hover:scale-105 flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                            Launch Task
+                        </button>
+                        <span id="readyIndicator" class="text-xs font-bold text-emerald-400 tracking-wider uppercase hidden md:inline-block">• Ready</span>
+                    </div>
+                    <span class="font-mono text-xs text-gray-500 bg-gray-900/50 px-2 py-1 rounded border border-gray-800">POST /solve</span>
+                </div>
+            </div>
+
+            <!-- Right: Response & Code -->
+            <div class="lg:col-span-7 flex flex-col gap-6">
+                
+                <!-- Response Panel -->
+                <div class="glass-panel rounded-2xl p-5 flex flex-col">
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                            <svg class="w-4 h-4 text-gold-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            Live Response
+                        </h3>
+                        <div class="flex gap-2">
+                            <span id="respStatus" class="font-mono text-[10px] md:text-xs px-2 py-1 rounded bg-gray-800 text-gray-400 border border-gray-700 flex items-center">status --</span>
+                            <span id="respTime" class="font-mono text-[10px] md:text-xs px-2 py-1 rounded bg-gray-800 text-gray-400 border border-gray-700 flex items-center">time --</span>
+                            <button onclick="copyText('responseBox', this)" class="font-mono text-[10px] md:text-xs px-3 py-1 rounded bg-gray-800 text-gray-300 border border-gray-600 hover:text-white hover:bg-gray-700 transition-colors cursor-pointer focus:outline-none">copy</button>
+                        </div>
+                    </div>
+                    <div class="bg-[#0d1117] rounded-xl border border-gray-700/50 relative overflow-hidden">
+                        <div class="h-[140px] md:h-[160px] overflow-y-auto custom-scrollbar p-4">
+                            <pre id="responseBox" class="font-mono text-xs text-indigo-200 whitespace-pre-wrap word-break m-0">// Awaiting task execution...</pre>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code Snippet Panel -->
+                <div class="glass-panel rounded-2xl p-5 flex flex-col flex-1">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-3 md:gap-0 border-b border-gray-700/50 pb-3">
+                        <div class="flex flex-wrap gap-1" id="snippetTabs">
+                            <button class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 border border-transparent" data-lang="curl">cURL</button>
+                            <button class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 border border-transparent" data-lang="node">Node.js</button>
+                            <button class="tab-btn active px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 border border-transparent" data-lang="python">Python</button>
+                            <button class="tab-btn px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400 border border-transparent" data-lang="go">Go</button>
+                        </div>
+                        <button onclick="copyText('codeSnippetBox', this)" class="font-mono text-[10px] md:text-xs px-3 py-1 rounded bg-gray-800 text-gray-300 border border-gray-600 hover:text-white hover:bg-gray-700 transition-colors focus:outline-none w-full md:w-auto">copy</button>
+                    </div>
+                    <div class="bg-[#0d1117] rounded-xl border border-gray-700/50 relative overflow-hidden flex-1">
+                        <div class="h-[200px] md:h-[240px] overflow-y-auto custom-scrollbar p-4">
+                            <pre id="codeSnippetBox" class="font-mono text-xs text-sky-200 leading-relaxed m-0"></pre>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Events Panel -->
+        <div class="glass-panel rounded-2xl p-6 mt-2 animate-cascade delay-3 mb-10">
+            <div class="flex justify-between items-center mb-5 border-b border-gray-700/50 pb-4">
+                <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                    <svg class="w-5 h-5 text-gold-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Recent Events Stream
+                </h3>
+                <span id="eventCountDisplay" class="text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-800 px-3 py-1 rounded border border-gray-700">0 Events</span>
+            </div>
+            
+            <div class="bg-[#0d1117]/80 rounded-xl border border-gray-700/30 overflow-hidden">
+                <div class="h-[220px] overflow-y-auto custom-scrollbar flex flex-col" id="eventsList">
+                    <div class="p-8 text-center text-gray-500 text-sm font-medium">System idle. No tasks processed yet.</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const activeMode = "turnstile-min";
+        let activeLang = "python";
+        let autoRefreshActive = true;
+        let refreshTimer = null;
+
+        // Code Snippet Tabs
+        document.querySelectorAll('#snippetTabs .tab-btn').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('#snippetTabs .tab-btn').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                activeLang = tab.getAttribute('data-lang');
+                renderSnippet();
+            });
+        });
+
+        // Input Listeners
+        ['inputUrl', 'inputSiteKey', 'inputTimeout', 'inputProxy', 'checkResidential'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', renderSnippet);
+                el.addEventListener('change', renderSnippet);
+            }
+        });
+
+        function renderSnippet() {
+            const host = window.location.host || '194.233.65.39:4040';
+            const url = document.getElementById('inputUrl').value.trim();
+            const siteKey = document.getElementById('inputSiteKey').value.trim();
+            const timeout = parseInt(document.getElementById('inputTimeout').value) || 60;
+            const proxy = document.getElementById('inputProxy').value.trim();
+            const residential = document.getElementById('checkResidential').checked;
+
+            const snippetBox = document.getElementById('codeSnippetBox');
+
+            if (activeLang === 'python') {
+                snippetBox.textContent =
+`import requests
+
+# proxy formats: "ip:port" | "user:pass@ip:port"
+# residential: True when using a residential proxy
+
+res = requests.post(
+    "http://${host}/solve",
+    json={
+        "mode": "${activeMode}",
+        "url": "${url}",
+        "siteKey": "${siteKey}",
+        "timeout": ${timeout},
+        "proxy": ${proxy ? `"${proxy}"` : `""`},
+        "residential": ${residential ? 'True' : 'False'}
+    },
+    timeout=${timeout + 15},
+)
+res.raise_for_status()
+print(res.json())`;
+            } else if (activeLang === 'curl') {
+                snippetBox.textContent =
+`curl -X POST "http://${host}/solve" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "mode": "${activeMode}",
+    "url": "${url}",
+    "siteKey": "${siteKey}",
+    "timeout": ${timeout},
+    "proxy": "${proxy}",
+    "residential": ${residential}
+  }'`;
+            } else if (activeLang === 'node') {
+                snippetBox.textContent =
+`const axios = require('axios');
+
+async function solveCaptcha() {
+    try {
+        const res = await axios.post('http://${host}/solve', {
+            mode: '${activeMode}',
+            url: '${url}',
+            siteKey: '${siteKey}',
+            timeout: ${timeout},
+            proxy: '${proxy}',
+            residential: ${residential}
+        });
+        console.log(res.data);
+    } catch (error) {
+        console.error(error.response ? error.response.data : error.message);
+    }
+}
+
+solveCaptcha();`;
+            } else if (activeLang === 'go') {
+                snippetBox.textContent =
+`package main
+
+import (
+    "bytes"
+    "encoding/json"
+    "fmt"
+    "io"
+    "net/http"
+)
+
+func main() {
+    payload := map[string]interface{}{
+        "mode": "${activeMode}",
+        "url": "${url}",
+        "siteKey": "${siteKey}",
+        "timeout": ${timeout},
+        "proxy": "${proxy}",
+        "residential": ${residential},
+    }
+    b, _ := json.Marshal(payload)
+    resp, err := http.Post("http://${host}/solve", "application/json", bytes.NewBuffer(b))
+    if err != nil { panic(err) }
+    defer resp.Body.Close()
+    
+    body, _ := io.ReadAll(resp.Body)
+    fmt.Println(string(body))
+}`;
+            }
+        }
+
+        function copyText(elementId, btnElement) {
+            const el = document.getElementById(elementId);
+            const text = el.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btnElement.textContent;
+                btnElement.textContent = 'copied!';
+                btnElement.classList.replace('text-gray-300', 'text-emerald-400');
+                
+                setTimeout(() => {
+                    btnElement.textContent = originalText;
+                    btnElement.classList.replace('text-emerald-400', 'text-gray-300');
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                const originalText = btnElement.textContent;
+                btnElement.textContent = 'error';
+                btnElement.classList.replace('text-gray-300', 'text-rose-400');
+                setTimeout(() => {
+                    btnElement.textContent = originalText;
+                    btnElement.classList.replace('text-rose-400', 'text-gray-300');
+                }, 1500);
+            });
+        }
+
+        async function sendSolveRequest() {
+            const btn = document.getElementById('btnSend');
+            const indicator = document.getElementById('readyIndicator');
+            const respBox = document.getElementById('responseBox');
+            const respStatus = document.getElementById('respStatus');
+            const respTime = document.getElementById('respTime');
+
+            const url = document.getElementById('inputUrl').value.trim();
+            const siteKey = document.getElementById('inputSiteKey').value.trim();
+            const timeout = parseInt(document.getElementById('inputTimeout').value) || 60;
+            const proxy = document.getElementById('inputProxy').value.trim();
+            const residential = document.getElementById('checkResidential').checked;
+
+            if (!url || !siteKey) {
+                respBox.textContent = '// Error: SITE URL and SITE KEY are required.';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `<div class="spinner border-[2px] border-gray-900 mr-2"></div> Executing...`;
+            indicator.textContent = '• processing';
+            indicator.className = 'text-xs font-bold text-amber-400 tracking-wider uppercase hidden md:inline-block';
+            respStatus.textContent = 'status ...';
+            respStatus.className = 'font-mono text-[10px] md:text-xs px-2 py-1 rounded bg-gray-800 text-gray-400 border border-gray-700 flex items-center';
+            respTime.textContent = 'time ...';
+            respBox.textContent = '// Resolving security challenge...';
+
+            const startTime = performance.now();
+
+            try {
+                const res = await fetch('/solve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        mode: activeMode,
+                        url: url,
+                        siteKey: siteKey,
+                        timeout: timeout,
+                        proxy: proxy || null,
+                        residential: residential
+                    })
+                });
+
+                const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(2);
+                const data = await res.json();
+
+                respStatus.textContent = `status ${res.status}`;
+                respStatus.className = `font-mono text-[10px] md:text-xs px-2 py-1 rounded border flex items-center ${res.ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' : 'bg-red-500/10 text-rose-400 border-red-500/30'}`;
+                respTime.textContent = `time ${elapsedSec}s`;
+                respBox.textContent = JSON.stringify(data, null, 2);
+
+                fetchMetrics();
+            } catch (err) {
+                const elapsedSec = ((performance.now() - startTime) / 1000).toFixed(2);
+                respStatus.textContent = `status ERR`;
+                respStatus.className = 'font-mono text-[10px] md:text-xs px-2 py-1 rounded border bg-red-500/10 text-rose-400 border-red-500/30 flex items-center';
+                respTime.textContent = `time ${elapsedSec}s`;
+                respBox.textContent = `// Network Error: ${err.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg> Launch Task`;
+                indicator.textContent = '• ready';
+                indicator.className = 'text-xs font-bold text-emerald-400 tracking-wider uppercase hidden md:inline-block';
+            }
+        }
+
+        async function fetchMetrics() {
+            try {
+                const res = await fetch('/api/metrics');
+                if (!res.ok) return;
+                const data = await res.json();
+
+                document.getElementById('metricSolved').textContent = data.solved;
+                document.getElementById('metricErrors').textContent = data.errors;
+                document.getElementById('metricInFlight').textContent = data.in_flight;
+                document.getElementById('metricSuccess').textContent = data.success_rate;
+                document.getElementById('metricAvgLatency').textContent = data.avg_latency;
+                document.getElementById('metricP95Latency').textContent = data.p95_latency;
+                document.getElementById('uptimeDisplay').textContent = `Uptime ${data.uptime}`;
+
+                renderEvents(data.recent_events);
+            } catch (e) {
+                console.error('Metrics sync failed:', e);
+            }
+        }
+
+        function renderEvents(events) {
+            const container = document.getElementById('eventsList');
+            const countDisplay = document.getElementById('eventCountDisplay');
+            if (!events || events.length === 0) {
+                container.innerHTML = '<div class="p-8 text-center text-gray-500 text-sm font-medium">System idle. No tasks processed yet.</div>';
+                countDisplay.textContent = '0 Events';
+                return;
+            }
+
+            countDisplay.textContent = `${events.length} Events`;
+            container.innerHTML = events.map(ev => `
+                <div class="flex justify-between items-center px-4 md:px-6 py-3 md:py-4 border-b border-gray-700/30 hover:bg-white/5 transition-colors">
+                    <div class="flex items-center gap-3 md:gap-4">
+                        <span class="font-mono text-[10px] md:text-xs text-gray-500 min-w-[65px]">${ev.time}</span>
+                        <span class="text-[9px] md:text-[10px] font-bold tracking-wider text-gray-300 uppercase bg-gray-800 px-2 py-0.5 rounded border border-gray-700 hidden sm:inline-block">${ev.mode}</span>
+                    </div>
+                    <div class="font-mono text-[10px] md:text-xs font-medium px-3 py-1 rounded-full border ${ev.ok ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-red-500/10 text-rose-400 border-red-500/20'}">
+                        HTTP ${ev.status} <span class="hidden sm:inline">• ${ev.latency}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('autoRefreshBtn').addEventListener('click', () => {
+            autoRefreshActive = !autoRefreshActive;
+            const btn = document.getElementById('autoRefreshBtn');
+            if (autoRefreshActive) {
+                btn.classList.replace('text-rose-400', 'text-emerald-400');
+                btn.classList.replace('hover:text-rose-300', 'hover:text-emerald-300');
+                btn.textContent = 'Auto-Refresh: ON';
+                refreshTimer = setInterval(fetchMetrics, 3000);
+            } else {
+                btn.classList.replace('text-emerald-400', 'text-rose-400');
+                btn.classList.replace('hover:text-emerald-300', 'hover:text-rose-300');
+                btn.textContent = 'Auto-Refresh: OFF';
+                clearInterval(refreshTimer);
+            }
+        });
+
+        // Init
+        renderSnippet();
+        fetchMetrics();
+        refreshTimer = setInterval(fetchMetrics, 3000);
+    </script>
+</body>
+</html>
